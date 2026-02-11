@@ -24,11 +24,29 @@ fn main() {
 
     #[cfg(windows)]
     let _job_handle = {
-        let job = win32job::Job::create().unwrap();
-        let mut info = job.query_extended_limit_info().unwrap();
+        let job = match win32job::Job::create() {
+            Ok(job) => job,
+            Err(e) => {
+                eprintln!("failed to create job object: {e}");
+                std::process::exit(1);
+            }
+        };
+        let mut info = match job.query_extended_limit_info() {
+            Ok(info) => info,
+            Err(e) => {
+                eprintln!("failed to query job info: {e}");
+                std::process::exit(1);
+            }
+        };
         info.limit_kill_on_job_close();
-        job.set_extended_limit_info(&info).unwrap();
-        job.assign_current_process().unwrap();
+        if let Err(e) = job.set_extended_limit_info(&info) {
+            eprintln!("failed to set job info: {e}");
+            std::process::exit(1);
+        }
+        if let Err(e) = job.assign_current_process() {
+            eprintln!("failed to assign process to job: {e}");
+            std::process::exit(1);
+        }
         job
     };
 
