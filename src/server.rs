@@ -52,14 +52,11 @@ async fn handle_plugin(
         let json: Value = serde_json::from_slice(&body)?;
 
         // Extract tauri:options to get app path and args
-        let (app_path, app_args) = match extract_app_path_and_args(&json) {
-            Some(res) => res,
-            None => {
-                return Ok(error_response(
-                    "session not created",
-                    "Missing tauri:options.application",
-                ))
-            }
+        let Some((app_path, app_args)) = extract_app_path_and_args(&json) else {
+            return Ok(error_response(
+                "session not created",
+                "Missing tauri:options.application",
+            ));
         };
 
         if !app_path.as_os_str().is_empty() {
@@ -152,12 +149,12 @@ fn extract_app_path_and_args(json: &Value) -> Option<(PathBuf, Vec<String>)> {
     let args = tauri_options
         .get("args")
         .and_then(|v| v.as_array())
-        .map(|arr| {
+        .map_or_else(Vec::new, |arr| {
             arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .filter_map(|v| v.as_str())
+                .map(std::string::ToString::to_string)
                 .collect()
-        })
-        .unwrap_or_else(Vec::new);
+        });
     Some((PathBuf::from(application), args))
 }
 
